@@ -12,7 +12,7 @@ function arrayBufferToBinaryString(buffer: ArrayBuffer): string {
     // chunk 단위로 처리하여 call stack overflow 방지
     const CHUNK = 8192;
     for (let i = 0; i < uint8.length; i += CHUNK) {
-        binary += String.fromCharCode(...uint8.subarray(i, i + CHUNK));
+        binary += String.fromCharCode(...Array.from(uint8.subarray(i, i + CHUNK)));
     }
     return binary;
 }
