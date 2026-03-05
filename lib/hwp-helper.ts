@@ -2,8 +2,6 @@
  * HWP Documentation & hwp.js Integration Guide
  */
 
-import { Viewer } from 'hwp.js';
-
 /**
  * .hwp 파일을 클라이언트 사이드에서 렌더링하는 기본 로직 예시
  * 
@@ -12,23 +10,13 @@ import { Viewer } from 'hwp.js';
  */
 export async function renderHwp(fileData: ArrayBuffer, containerElement: HTMLElement) {
     try {
-        // 1. hwp.js 인스턴스 생성
-        const viewer = new Viewer(fileData, {
-            // 폰트 매핑 설정 (필요 시)
-            fontMapping: {
-                'Batang': 'serif',
-                'Gulim': 'sans-serif',
-            }
-        });
+        // 1. hwp.js 인스턴스 동적 로드 (SSR 에러 방지)
+        const { Viewer } = await import('hwp.js');
 
-        // 2. 컨테이너 초기화
-        containerElement.innerHTML = '';
+        // hahnlee/hwp.js API: new Viewer(container, data) data must be Uint8Array
+        new Viewer(containerElement, new Uint8Array(fileData));
 
-        // 3. 렌더링 실행
-        // hwp.js는 내부적으로 문서를 파싱하여 DOM 요소들을 생성합니다.
-        viewer.render(containerElement);
-
-        console.log('HWP rendering complete');
+        console.log('HWP rendering initiated');
     } catch (error) {
         console.error('HWP rendering failed:', error);
         containerElement.innerHTML = `<div class="p-8 text-red-500">문서를 읽는 중 오류가 발생했습니다: ${error}</div>`;
