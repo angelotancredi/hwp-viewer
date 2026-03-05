@@ -21,7 +21,8 @@ export async function renderHwp(fileData: ArrayBuffer, containerElement: HTMLEle
 
         // 2. 데이터 파싱 테스트 (데이터가 정상인지 확인)
         try {
-            const doc = parse(uint8Data);
+            // cfb.read (parse 내부에서 호출)에 binary 타입을 명시해야 함
+            const doc = parse(uint8Data, { type: 'binary' });
             console.log('[hwp-helper] Parse successful. Document object:', doc);
 
             // 만약 텍스트 추출이 필요하다면 여기서 로직을 추가할 수 있으나, 
@@ -40,7 +41,7 @@ export async function renderHwp(fileData: ArrayBuffer, containerElement: HTMLEle
             containerElement.style.minHeight = '600px';
         }
 
-        const viewer = new Viewer(containerElement, uint8Data);
+        const viewer = new Viewer(containerElement, uint8Data, { type: 'binary' });
         console.log('[hwp-helper] Viewer instance created:', viewer);
 
         // 4. 추가 확인: viewer 내부의 DOM이 생성되었는지
