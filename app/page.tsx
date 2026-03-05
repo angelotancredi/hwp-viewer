@@ -3,12 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   FileText,
-  Menu,
   Maximize2,
   ChevronLeft,
-  Upload,
-  Info,
-  Smartphone,
   Tablet as TabletIcon,
   X,
   Plus
