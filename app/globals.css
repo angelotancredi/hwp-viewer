@@ -1,0 +1,42 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 0, 0, 0;
+  --background-start-rgb: 214, 219, 220;
+  --background-end-rgb: 255, 255, 255;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --foreground-rgb: 255, 255, 255;
+    --background-start-rgb: 0, 0, 0;
+    --background-end-rgb: 0, 0, 0;
+  }
+}
+
+body {
+  color: rgb(var(--foreground-rgb));
+  background: white;
+  @apply dark:bg-[#121212];
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+/* One UI Specifics */
+.one-ui-card {
+  @apply bg-white dark:bg-[#1e1e1e] rounded-one-ui shadow-one-ui border border-gray-100/50 dark:border-white/5;
+}
+
+.one-ui-title {
+  @apply text-[28px] font-bold tracking-tight text-gray-900 dark:text-white mb-2;
+}
+
+.one-ui-subtitle {
+  @apply text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-widest;
+}
+
+/* Transitions */
+.page-transition {
+  @apply transition-all duration-300 ease-in-out;
+}
