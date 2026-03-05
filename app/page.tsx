@@ -66,6 +66,7 @@ export default function Home() {
 
   // Render HWP when selected file changes
   useEffect(() => {
+    console.log('Home: useEffect triggered', { selectedFileId, filesCount: files.length, hasViewerRef: !!viewerRef.current });
     const triggerRender = async () => {
       if (selectedFile && viewerRef.current) {
         console.log('Home: Triggering render for:', selectedFile.name);
@@ -90,9 +91,13 @@ export default function Home() {
     const fileList = e.target.files;
     if (!fileList) return;
 
+    console.log('Home: handleFileUpload started', { count: fileList.length });
+
     Array.from(fileList).forEach(f => {
+      console.log('Home: Reading file:', f.name, f.size);
       const reader = new FileReader();
       reader.onload = (event) => {
+        console.log('Home: FileReader onload for:', f.name);
         if (event.target?.result instanceof ArrayBuffer) {
           const newFile: HwpFile = {
             id: Math.random().toString(36).substr(2, 9),
@@ -101,12 +106,24 @@ export default function Home() {
             lastModified: new Date(f.lastModified),
             data: event.target.result
           };
-          setFiles(prev => [newFile, ...prev]);
-          if (isTablet && files.length === 0) {
-            setSelectedFileId(newFile.id);
-          }
+
+          setFiles(prev => {
+            const updated = [newFile, ...prev];
+            console.log('Home: Updated files list, count:', updated.length);
+            return updated;
+          });
+
+          // Auto-select if it's the only file or no file is selected
+          setSelectedFileId(currentId => {
+            if (!currentId) {
+              console.log('Home: Auto-selecting new file:', newFile.id);
+              return newFile.id;
+            }
+            return currentId;
+          });
         }
       };
+      reader.onerror = (err) => console.error('Home: FileReader error:', err);
       reader.readAsArrayBuffer(f);
     });
   };
