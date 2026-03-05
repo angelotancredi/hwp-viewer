@@ -12,46 +12,55 @@ export async function renderHwp(fileData: ArrayBuffer, containerElement: HTMLEle
     console.log('[hwp-helper] Starting renderHwp. Buffer size:', fileData.byteLength);
 
     try {
-        // 1. hwp.js 동적 로드
         const hwpjs = await import('hwp.js');
         const { Viewer, parse } = hwpjs;
         console.log('[hwp-helper] hwp.js modules loaded:', Object.keys(hwpjs));
 
-        // ✅ 핵심:
-        //   - type:'binary' + 바이너리 문자열 → zlib "invalid block type" 오류 발생
-        //     (문자열 변환 과정에서 압축 데이터 손상)
-        //   - type:'array' + Uint8Array → cfb.js가 .split() 호출 안 함, 데이터 손상 없음
-        const uint8Data = new Uint8Array(fileData);
+        // hwp.js / cfb.js 가 지원하는 입력 타입을 순서대로 시도
+        // 각 시도가 실패하면 다음 방법으로 넘어감
+        const strategies: Array<{ label: string; data: unknown; opts: object }> = [
+            // 1) ArrayBuffer 직접 전달 (options 없음 - hwp.js 내부 기본값 사용)
+            { label: 'ArrayBuffer (no opts)', data: fileData, opts: {} },
+            // 2) Uint8Array + type:array
+            { label: 'Uint8Array + array', data: new Uint8Array(fileData), opts: { type: 'array' } },
+            // 3) 일반 Array + type:array  (Uint8Array를 Array로 변환)
+            { label: 'Array + array', data: Array.from(new Uint8Array(fileData)), opts: { type: 'array' } },
+            // 4) base64 인코딩 + type:base64
+            { label: 'base64', data: btoa(
+                new Uint8Array(fileData).reduce((s, b) => s + String.fromCharCode(b), '')
+            ), opts: { type: 'base64' } },
+        ];
 
-        // 2. 파싱 검증
-        try {
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const doc = parse(uint8Data as any, { type: 'array' });
-            console.log('[hwp-helper] Parse successful. Document object:', doc);
-        } catch (parseError) {
-            console.error('[hwp-helper] parse() failed:', parseError);
-            throw new Error(`HWP 파싱 실패: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
-        }
+        let lastError: unknown = null;
 
-        // 3. Viewer 렌더링
-        console.log('[hwp-helper] Attempting to create Viewer with container:', containerElement);
+        for (const strategy of strategies) {
+            try {
+                console.log(`[hwp-helper] Trying strategy: ${strategy.label}`);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const doc = parse(strategy.data as any, strategy.opts as any);
+                console.log(`[hwp-helper] Parse SUCCESS with: ${strategy.label}`, doc);
 
-        if (containerElement.clientHeight === 0) {
-            console.warn('[hwp-helper] Container height is 0. Setting min-height.');
-            containerElement.style.minHeight = '600px';
-        }
+                if (containerElement.clientHeight === 0) {
+                    containerElement.style.minHeight = '600px';
+                }
 
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const viewer = new Viewer(containerElement, uint8Data as any, { type: 'array' });
-        console.log('[hwp-helper] Viewer instance created:', viewer);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                new Viewer(containerElement, strategy.data as any, strategy.opts as any);
+                console.log(`[hwp-helper] Viewer created with: ${strategy.label}`);
 
-        // 4. 렌더링 확인
-        setTimeout(() => {
-            console.log('[hwp-helper] Container child count after 300ms:', containerElement.childElementCount);
-            if (containerElement.childElementCount === 0) {
-                console.error('[hwp-helper] Viewer did not add any elements to the container.');
+                setTimeout(() => {
+                    console.log('[hwp-helper] Child count after 300ms:', containerElement.childElementCount);
+                }, 300);
+
+                return; // 성공하면 바로 종료
+            } catch (err) {
+                console.warn(`[hwp-helper] Strategy "${strategy.label}" failed:`, err);
+                lastError = err;
             }
-        }, 300);
+        }
+
+        // 모든 전략 실패
+        throw new Error(`HWP 파싱 실패: ${lastError instanceof Error ? lastError.message : String(lastError)}`);
 
     } catch (error) {
         console.error('[hwp-helper] Critical error in renderHwp:', error);
