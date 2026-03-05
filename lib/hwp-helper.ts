@@ -19,7 +19,7 @@ function arrayBufferToBinaryString(buffer: ArrayBuffer): string {
 
 /**
  * .hwp 파일을 클라이언트 사이드에서 렌더링하는 기본 로직 예시
- * 
+ *
  * @param fileData ArrayBuffer 형태의 HWP 파일 데이터
  * @param containerElement 렌더링될 HTML Element
  */
@@ -38,9 +38,14 @@ export async function renderHwp(fileData: ArrayBuffer, containerElement: HTMLEle
         const binaryString = arrayBufferToBinaryString(fileData);
         console.log('[hwp-helper] Converted to binary string, length:', binaryString.length);
 
+        // hwp.js의 타입 정의(CFB$Blob)가 string을 명시적으로 포함하지 않아
+        // 런타임에서는 정상 동작하지만 TS 컴파일러가 타입 에러를 냄 → any로 우회
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const hwpData = binaryString as any;
+
         // 2. 파싱 검증
         try {
-            const doc = parse(binaryString, { type: 'binary' });
+            const doc = parse(hwpData, { type: 'binary' });
             console.log('[hwp-helper] Parse successful. Document object:', doc);
         } catch (parseError) {
             console.error('[hwp-helper] parse() failed:', parseError);
@@ -56,7 +61,7 @@ export async function renderHwp(fileData: ArrayBuffer, containerElement: HTMLEle
         }
 
         // ✅ Viewer에도 동일하게 바이너리 문자열 전달
-        const viewer = new Viewer(containerElement, binaryString, { type: 'binary' });
+        const viewer = new Viewer(containerElement, hwpData, { type: 'binary' });
         console.log('[hwp-helper] Viewer instance created:', viewer);
 
         // 4. 렌더링 확인
