@@ -35,6 +35,7 @@ export default function Home() {
   const [isTablet, setIsTablet] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [mobileView, setMobileView] = useState<'list' | 'viewer'>('list');
+  const [renderingError, setRenderingError] = useState<string | null>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
 
   const selectedFile = files.find(f => f.id === selectedFileId);
@@ -65,11 +66,23 @@ export default function Home() {
 
   // Render HWP when selected file changes
   useEffect(() => {
-    if (selectedFile && viewerRef.current) {
-      // Clear previous content
-      viewerRef.current.innerHTML = '';
-      renderHwp(selectedFile.data, viewerRef.current);
-    }
+    const triggerRender = async () => {
+      if (selectedFile && viewerRef.current) {
+        console.log('Home: Triggering render for:', selectedFile.name);
+        try {
+          setRenderingError(null);
+          // Clear previous content
+          viewerRef.current.innerHTML = '';
+          await renderHwp(selectedFile.data, viewerRef.current);
+          console.log('Home: Render successful');
+        } catch (err: any) {
+          console.error('Home: Render failed:', err);
+          setRenderingError(err.message || '파일을 읽는 중 오류가 발생했습니다.');
+        }
+      }
+    };
+
+    triggerRender();
   }, [selectedFileId, files]); // Re-render if selected file ID or files array changes (covers fresh uploads)
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -223,6 +236,18 @@ export default function Home() {
                       </div>
                       <h2 className="text-xl font-bold text-gray-900 dark:text-gray-100 mb-2">프리뷰할 문서가 없습니다</h2>
                       <p className="text-sm">왼쪽 목록에서 파일을 선택하거나<br />새 파일을 업로드해 주세요.</p>
+                    </div>
+                  ) : renderingError ? (
+                    <div className="h-full flex flex-col items-center justify-center text-red-500 text-center p-8">
+                      <X className="w-16 h-16 mb-4 opacity-50" />
+                      <h2 className="text-xl font-bold mb-2">파일을 읽는 중 오류가 발생했습니다</h2>
+                      <p className="text-sm opacity-80">{renderingError}</p>
+                      <button
+                        onClick={() => setSelectedFileId(selectedFileId)}
+                        className="mt-6 px-6 py-2 bg-gray-100 dark:bg-gray-800 rounded-full text-sm font-semibold hover:bg-gray-200 dark:hover:bg-gray-700"
+                      >
+                        다시 시도
+                      </button>
                     </div>
                   ) : (
                     <div className="max-w-[800px] mx-auto min-h-[1000px] bg-white dark:bg-transparent shadow-sm ring-1 ring-gray-100 dark:ring-white/5 rounded-sm p-8 md:p-12 mb-20 animate-in fade-in slide-in-from-bottom-4 duration-700 hwp-content" ref={viewerRef}>
