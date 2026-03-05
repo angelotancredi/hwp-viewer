@@ -3,6 +3,21 @@
  */
 
 /**
+ * ArrayBuffer를 hwp.js가 요구하는 바이너리 문자열로 변환
+ * cfb.js 내부에서 type:'binary'일 때 string.split()을 호출하기 때문에 반드시 필요
+ */
+function arrayBufferToBinaryString(buffer: ArrayBuffer): string {
+    const uint8 = new Uint8Array(buffer);
+    let binary = '';
+    // chunk 단위로 처리하여 call stack overflow 방지
+    const CHUNK = 8192;
+    for (let i = 0; i < uint8.length; i += CHUNK) {
+        binary += String.fromCharCode(...uint8.subarray(i, i + CHUNK));
+    }
+    return binary;
+}
+
+/**
  * .hwp 파일을 클라이언트 사이드에서 렌더링하는 기본 로직 예시
  * 
  * @param fileData ArrayBuffer 형태의 HWP 파일 데이터
@@ -17,16 +32,16 @@ export async function renderHwp(fileData: ArrayBuffer, containerElement: HTMLEle
         const { Viewer, parse } = hwpjs;
         console.log('[hwp-helper] hwp.js modules loaded:', Object.keys(hwpjs));
 
-        const uint8Data = new Uint8Array(fileData);
+        // ✅ 핵심 수정: Uint8Array가 아닌 바이너리 문자열로 변환
+        // cfb.js는 type:'binary' 옵션일 때 string.split()을 내부적으로 호출하므로
+        // Uint8Array를 넘기면 "t.split is not a function" 에러가 발생함
+        const binaryString = arrayBufferToBinaryString(fileData);
+        console.log('[hwp-helper] Converted to binary string, length:', binaryString.length);
 
-        // 2. 데이터 파싱 테스트 (데이터가 정상인지 확인)
+        // 2. 파싱 검증
         try {
-            // cfb.read (parse 내부에서 호출)에 binary 타입을 명시해야 함
-            const doc = parse(uint8Data, { type: 'binary' });
+            const doc = parse(binaryString, { type: 'binary' });
             console.log('[hwp-helper] Parse successful. Document object:', doc);
-
-            // 만약 텍스트 추출이 필요하다면 여기서 로직을 추가할 수 있으나, 
-            // hahnlee/hwp.js는 주로 Viewer를 통한 렌더링을 지향함.
         } catch (parseError) {
             console.error('[hwp-helper] parse() failed:', parseError);
             throw new Error(`HWP 파싱 실패: ${parseError instanceof Error ? parseError.message : String(parseError)}`);
@@ -35,16 +50,16 @@ export async function renderHwp(fileData: ArrayBuffer, containerElement: HTMLEle
         // 3. Viewer 렌더링
         console.log('[hwp-helper] Attempting to create Viewer with container:', containerElement);
 
-        // containerElement의 높이가 0이면 안 보이므로 강제 설정 (One UI 스택에 맞춰 조절)
         if (containerElement.clientHeight === 0) {
             console.warn('[hwp-helper] Container height is 0. Setting min-height.');
             containerElement.style.minHeight = '600px';
         }
 
-        const viewer = new Viewer(containerElement, uint8Data, { type: 'binary' });
+        // ✅ Viewer에도 동일하게 바이너리 문자열 전달
+        const viewer = new Viewer(containerElement, binaryString, { type: 'binary' });
         console.log('[hwp-helper] Viewer instance created:', viewer);
 
-        // 4. 추가 확인: viewer 내부의 DOM이 생성되었는지
+        // 4. 렌더링 확인
         setTimeout(() => {
             console.log('[hwp-helper] Container child count after 300ms:', containerElement.childElementCount);
             if (containerElement.childElementCount === 0) {
@@ -57,13 +72,3 @@ export async function renderHwp(fileData: ArrayBuffer, containerElement: HTMLEle
         throw error;
     }
 }
-
-/**
- * Usage in React Component:
- * 
- * useEffect(() => {
- *   if (selectedFile?.data && viewerRef.current) {
- *     renderHwp(selectedFile.data, viewerRef.current);
- *   }
- * }, [selectedFile]);
- */
