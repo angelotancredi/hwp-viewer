@@ -40,3 +40,38 @@ body {
 .page-transition {
   @apply transition-all duration-300 ease-in-out;
 }
+
+/* HWP Content Styles */
+.hwp-content {
+  @apply text-gray-900 dark:text-gray-100;
+  font-family: 'Batang', 'Times New Roman', serif;
+  line-height: 1.6;
+}
+
+.hwp-content table {
+  @apply w-full border-collapse my-6 border border-gray-300 dark:border-gray-700;
+}
+
+.hwp-content td,
+.hwp-content th {
+  @apply border border-gray-300 dark:border-gray-700 p-2 min-h-[1.5em] align-middle;
+}
+
+.hwp-content p {
+  @apply my-2;
+}
+
+.hwp-content h1,
+.hwp-content h2,
+.hwp-content h3 {
+  @apply font-bold mt-8 mb-4;
+}
+
+.dark .hwp-content table {
+  @apply border-gray-600;
+}
+
+.dark .hwp-content td,
+.dark .hwp-content th {
+  @apply border-gray-600;
+}

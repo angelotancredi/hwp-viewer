@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   FileText,
   Maximize2,
@@ -12,6 +12,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
+import { renderHwp } from '@/lib/hwp-helper';
 
 /** Utility for Tailwind Classes */
 function cn(...inputs: ClassValue[]) {
@@ -24,7 +25,7 @@ interface HwpFile {
   name: string;
   size: string;
   lastModified: Date;
-  content?: string; // Parsed HTML content
+  data: ArrayBuffer; // Raw HWP file data
 }
 
 // --- Main Page Component ---
@@ -34,6 +35,7 @@ export default function Home() {
   const [isTablet, setIsTablet] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
   const [mobileView, setMobileView] = useState<'list' | 'viewer'>('list');
+  const viewerRef = useRef<HTMLDivElement>(null);
 
   const selectedFile = files.find(f => f.id === selectedFileId);
 
@@ -61,22 +63,38 @@ export default function Home() {
     }
   }, [selectedFileId, isTablet]);
 
+  // Render HWP when selected file changes
+  useEffect(() => {
+    if (selectedFile && viewerRef.current) {
+      // Clear previous content
+      viewerRef.current.innerHTML = '';
+      renderHwp(selectedFile.data, viewerRef.current);
+    }
+  }, [selectedFileId, files]); // Re-render if selected file ID or files array changes (covers fresh uploads)
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
     if (!fileList) return;
 
-    const newFiles: HwpFile[] = Array.from(fileList).map(f => ({
-      id: Math.random().toString(36).substr(2, 9),
-      name: f.name,
-      size: (f.size / 1024).toFixed(1) + ' KB',
-      lastModified: new Date(f.lastModified),
-      content: '<div class="p-8 text-center text-gray-500">문서 내용을 파싱 중입니다... (hwp.js 연동 예시)</div>'
-    }));
-
-    setFiles(prev => [...newFiles, ...prev]);
-    if (newFiles.length > 0 && isTablet) {
-      setSelectedFileId(newFiles[0].id);
-    }
+    Array.from(fileList).forEach(f => {
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result instanceof ArrayBuffer) {
+          const newFile: HwpFile = {
+            id: Math.random().toString(36).substr(2, 9),
+            name: f.name,
+            size: (f.size / 1024).toFixed(1) + ' KB',
+            lastModified: new Date(f.lastModified),
+            data: event.target.result
+          };
+          setFiles(prev => [newFile, ...prev]);
+          if (isTablet && files.length === 0) {
+            setSelectedFileId(newFile.id);
+          }
+        }
+      };
+      reader.readAsArrayBuffer(f);
+    });
   };
 
   return (
@@ -207,25 +225,8 @@ export default function Home() {
                       <p className="text-sm">왼쪽 목록에서 파일을 선택하거나<br />새 파일을 업로드해 주세요.</p>
                     </div>
                   ) : (
-                    <div className="max-w-[800px] mx-auto min-h-[1000px] bg-white dark:bg-transparent shadow-sm ring-1 ring-gray-100 dark:ring-white/5 rounded-sm p-12 mb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                      {/* Placeholder for HWP rendering logic */}
-                      <section className="prose dark:prose-invert max-w-none">
-                        <h1 className="text-center mb-12 border-b pb-8">{selectedFile.name}</h1>
-                        <p className="text-center text-gray-400 mb-12 italic">이 영역은 hwp.js 라이브러리의 렌더러가 차지하게 됩니다.</p>
-
-                        <div className="space-y-6">
-                          <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded w-full"></div>
-                          <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded w-5/6"></div>
-                          <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded w-full"></div>
-                          <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded w-4/5"></div>
-                          <div className="h-4 bg-gray-100 dark:bg-gray-800 rounded w-full"></div>
-                        </div>
-
-                        <div className="grid grid-cols-2 gap-4 mt-12">
-                          <div className="h-32 bg-gray-50 dark:bg-gray-800 rounded-2xl"></div>
-                          <div className="h-32 bg-gray-50 dark:bg-gray-800 rounded-2xl"></div>
-                        </div>
-                      </section>
+                    <div className="max-w-[800px] mx-auto min-h-[1000px] bg-white dark:bg-transparent shadow-sm ring-1 ring-gray-100 dark:ring-white/5 rounded-sm p-8 md:p-12 mb-20 animate-in fade-in slide-in-from-bottom-4 duration-700 hwp-content" ref={viewerRef}>
+                      {/* hwp.js will render here */}
                     </div>
                   )}
                 </div>
