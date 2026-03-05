@@ -1,24 +1,9 @@
 /**
- * HWP Documentation & hwp.js Integration Guide
+ * HWP Helper - hwp.js Integration
  */
 
 /**
- * ArrayBuffer를 hwp.js가 요구하는 바이너리 문자열로 변환
- * cfb.js 내부에서 type:'binary'일 때 string.split()을 호출하기 때문에 반드시 필요
- */
-function arrayBufferToBinaryString(buffer: ArrayBuffer): string {
-    const uint8 = new Uint8Array(buffer);
-    let binary = '';
-    // chunk 단위로 처리하여 call stack overflow 방지
-    const CHUNK = 8192;
-    for (let i = 0; i < uint8.length; i += CHUNK) {
-        binary += String.fromCharCode(...Array.from(uint8.subarray(i, i + CHUNK)));
-    }
-    return binary;
-}
-
-/**
- * .hwp 파일을 클라이언트 사이드에서 렌더링하는 기본 로직 예시
+ * .hwp 파일을 클라이언트 사이드에서 렌더링
  *
  * @param fileData ArrayBuffer 형태의 HWP 파일 데이터
  * @param containerElement 렌더링될 HTML Element
@@ -32,20 +17,16 @@ export async function renderHwp(fileData: ArrayBuffer, containerElement: HTMLEle
         const { Viewer, parse } = hwpjs;
         console.log('[hwp-helper] hwp.js modules loaded:', Object.keys(hwpjs));
 
-        // ✅ 핵심 수정: Uint8Array가 아닌 바이너리 문자열로 변환
-        // cfb.js는 type:'binary' 옵션일 때 string.split()을 내부적으로 호출하므로
-        // Uint8Array를 넘기면 "t.split is not a function" 에러가 발생함
-        const binaryString = arrayBufferToBinaryString(fileData);
-        console.log('[hwp-helper] Converted to binary string, length:', binaryString.length);
-
-        // hwp.js의 타입 정의(CFB$Blob)가 string을 명시적으로 포함하지 않아
-        // 런타임에서는 정상 동작하지만 TS 컴파일러가 타입 에러를 냄 → any로 우회
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const hwpData = binaryString as any;
+        // ✅ 핵심:
+        //   - type:'binary' + 바이너리 문자열 → zlib "invalid block type" 오류 발생
+        //     (문자열 변환 과정에서 압축 데이터 손상)
+        //   - type:'array' + Uint8Array → cfb.js가 .split() 호출 안 함, 데이터 손상 없음
+        const uint8Data = new Uint8Array(fileData);
 
         // 2. 파싱 검증
         try {
-            const doc = parse(hwpData, { type: 'binary' });
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const doc = parse(uint8Data as any, { type: 'array' });
             console.log('[hwp-helper] Parse successful. Document object:', doc);
         } catch (parseError) {
             console.error('[hwp-helper] parse() failed:', parseError);
@@ -60,8 +41,8 @@ export async function renderHwp(fileData: ArrayBuffer, containerElement: HTMLEle
             containerElement.style.minHeight = '600px';
         }
 
-        // ✅ Viewer에도 동일하게 바이너리 문자열 전달
-        const viewer = new Viewer(containerElement, hwpData, { type: 'binary' });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const viewer = new Viewer(containerElement, uint8Data as any, { type: 'array' });
         console.log('[hwp-helper] Viewer instance created:', viewer);
 
         // 4. 렌더링 확인
