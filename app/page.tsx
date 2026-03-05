@@ -85,7 +85,7 @@ export default function Home() {
     };
 
     triggerRender();
-  }, [selectedFileId, files, selectedFile]); // Re-render if selected file ID or files array changes (covers fresh uploads)
+  }, [selectedFileId, files, selectedFile, mobileView, isTablet]); // Re-render if selection or view mode changes
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
