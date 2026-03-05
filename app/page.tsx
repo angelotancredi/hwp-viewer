@@ -75,15 +75,16 @@ export default function Home() {
           viewerRef.current.innerHTML = '';
           await renderHwp(selectedFile.data, viewerRef.current);
           console.log('Home: Render successful');
-        } catch (err: any) {
+        } catch (err: unknown) {
           console.error('Home: Render failed:', err);
-          setRenderingError(err.message || '파일을 읽는 중 오류가 발생했습니다.');
+          const errorMessage = err instanceof Error ? err.message : '파일을 읽는 중 오류가 발생했습니다.';
+          setRenderingError(errorMessage);
         }
       }
     };
 
     triggerRender();
-  }, [selectedFileId, files]); // Re-render if selected file ID or files array changes (covers fresh uploads)
+  }, [selectedFileId, files, selectedFile]); // Re-render if selected file ID or files array changes (covers fresh uploads)
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const fileList = e.target.files;
